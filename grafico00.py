@@ -56,9 +56,6 @@ if arquivo is not None:
 
                 barras = ax.bar(df_filtrado["sigla_uf"], df_filtrado["despesa_total_pib"] * 100, color=cores)
 
-                # Adiciona rótulos acima das barras
-                for i, v in enumerate(df_filtrado["despesa_total_pib"]):
-                    ax.text(i, v * 100 + 0.02, f"{v * 100:.2f}%", ha="center", fontweight="bold")
 
                 ax.set_title(f"Percentual da Despesa Total em relação ao PIB ({ano})", fontsize=14, pad=15)
                 ax.set_xlabel("Estado")
