@@ -2,76 +2,74 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 
-st.set_page_config(page_title="Comparador de Indicadores Econômicos", layout="wide")
-st.title("📊 Comparador de Indicadores Econômicos por Estado")
+# --- CONFIGURAÇÕES GERAIS ---
+st.set_page_config(page_title="Comparativo de Despesas do Judiciário", layout="wide")
+st.title("📊 Comparativo de Despesas da Justiça Estadual")
 
-# ==============================
-# 1️⃣ Upload do arquivo
-# ==============================
-uploaded_file = st.file_uploader("⬆️ Faça o upload do arquivo CSV", type=["csv"])
+# --- LEITURA DO ARQUIVO CSV ---
+arquivo_csv = st.file_uploader("Envie o arquivo CSV com os dados", type=["csv"])
 
-if uploaded_file is not None:
-    df = pd.read_csv(uploaded_file)
+if arquivo_csv is not None:
+    df = pd.read_csv(arquivo_csv)
 
-    # Remove espaços e deixa os nomes das colunas em minúsculas
+    # Normaliza nomes de colunas (remove espaços e deixa tudo minúsculo)
     df.columns = df.columns.str.strip().str.lower()
 
-    st.success("✅ Arquivo carregado com sucesso!")
-    st.write("### 🧾 Colunas detectadas:")
-    st.write(list(df.columns))
+    # --- SELEÇÃO DE ANO ---
+    anos_disponiveis = sorted(df["ano"].unique())
+    ano_escolhido = st.selectbox("Selecione o ano", anos_disponiveis)
 
-    # ==============================
-    # 2️⃣ Identifica automaticamente colunas principais
-    # ==============================
-    col_ano = next((c for c in df.columns if "ano" in c), None)
-    col_estado = next((c for c in df.columns if "sigla" in c and "uf" in c), None)
+    # Filtra o dataframe pelo ano
+    df_ano = df[df["ano"] == ano_escolhido]
 
-    if col_ano and col_estado:
-        anos = sorted(df[col_ano].dropna().unique())
-        estados = sorted(df[col_estado].dropna().unique())
+    # --- SELEÇÃO DE ESTADOS ---
+    estados_disponiveis = sorted(df_ano["sigla_uf"].unique())
+    estados_escolhidos = st.multiselect(
+        "Selecione os estados que deseja comparar",
+        estados_disponiveis,
+        default=estados_disponiveis[:2]  # pré-seleciona os dois primeiros
+    )
 
-        # Pega apenas colunas numéricas
-        colunas_numericas = df.select_dtypes(include=["float64", "int64"]).columns.tolist()
+    # --- SELEÇÃO DO TIPO DE DADO ---
+    opcoes_dados = {
+        "Despesa Total / PIB (%)": "despesa_total_pib",
+        "Despesa Média por Magistrado": "despesa_media_magistrado",
+        "Despesa Total da Justiça Estadual": "despesa_total_justica_estadual"
+    }
 
-        st.sidebar.header("⚙️ Filtros de Comparação")
-        tipo_dado = st.sidebar.selectbox("Selecione o tipo de dado:", colunas_numericas)
-        ano = st.sidebar.selectbox("Selecione o ano:", anos, index=len(anos)-1)
-        estado1 = st.sidebar.selectbox("Primeiro estado:", estados, index=0)
-        estado2 = st.sidebar.selectbox("Segundo estado:", estados, index=1)
+    tipo_dado = st.selectbox("Selecione o tipo de dado para comparação", list(opcoes_dados.keys()))
+    coluna_escolhida = opcoes_dados[tipo_dado]
 
-        # ==============================
-        # 3️⃣ Filtragem
-        # ==============================
-        df_filtrado = df[(df[col_ano] == ano) & (df[col_estado].isin([estado1, estado2]))]
+    # --- FILTRAGEM FINAL ---
+    df_filtrado = df_ano[df_ano["sigla_uf"].isin(estados_escolhidos)]
 
-        if df_filtrado.empty:
-            st.warning("⚠️ Não há dados disponíveis para essa combinação de filtros.")
-        else:
-            # ==============================
-            # 4️⃣ Gráfico
-            # ==============================
-            fig, ax = plt.subplots(figsize=(7, 4))
-            cores = ["#1f77b4", "#ff7f0e"]
+    # --- GRÁFICO ---
+    if not df_filtrado.empty:
+        fig, ax = plt.subplots(figsize=(8, 4))
 
-            barras = ax.bar(df_filtrado[col_estado], df_filtrado[tipo_dado], color=cores)
+        cores = ["#1f77b4", "#ff7f0e", "#2ca02c", "#9467bd", "#8c564b"]
+        barras = ax.bar(
+            df_filtrado["sigla_uf"],
+            df_filtrado[coluna_escolhida],
+            color=cores[:len(df_filtrado)]
+        )
 
-            for i, v in enumerate(df_filtrado[tipo_dado]):
-                ax.text(i, v / 2, f"{v:.4f}", ha="center", va="center", color="white", fontweight="bold")
+        # Rótulos de valor
+        for barra in barras:
+            altura = barra.get_height()
+            ax.text(
+                barra.get_x() + barra.get_width() / 2,
+                altura * 0.02,
+                f"{altura:,.2f}",
+                ha="center", va="bottom", fontweight="bold"
+            )
 
-            ax.set_title(f"{tipo_dado.replace('_', ' ').title()} ({ano})", fontsize=14, pad=15)
-            ax.set_xlabel("Estado")
-            ax.set_ylabel(tipo_dado.replace('_', ' ').title())
-            ax.set_ylim(0, df_filtrado[tipo_dado].max() * 1.2)
-
-            st.pyplot(fig)
-
-            # ==============================
-            # 5️⃣ Exibição dos dados
-            # ==============================
-            st.write("### 🔢 Dados utilizados na comparação")
-            st.dataframe(df_filtrado[[col_ano, col_estado, tipo_dado]])
-
+        # --- TÍTULOS E EIXOS ---
+        ax.set_title(f"{tipo_dado} ({ano_escolhido})", fontsize=14, fontweight="bold")
+        ax.set_xlabel("Estado")
+        ax.set_ylabel(tipo_dado)
+        st.pyplot(fig)
     else:
-        st.error("❌ O arquivo precisa conter colunas com nomes parecidos com 'ano' e 'sigla_uf'.")
+        st.warning("⚠️ Nenhum dado disponível para os filtros selecionados.")
 else:
-    st.info("📂 Faça o upload do arquivo CSV para começar.")
+    st.info("⬆️ Envie um arquivo CSV para começar a análise.")
