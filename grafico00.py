@@ -2,61 +2,73 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 
-st.title("📊 Comparativo de Indicadores Econômicos por Estado")
+# ==============================
+# 1️⃣ Título e upload
+# ==============================
+st.set_page_config(page_title="Comparador de Indicadores Econômicos", layout="wide")
+st.title("📊 Comparador de Indicadores Econômicos por Estado")
 
-# ==============================
-# 1️⃣ Upload do arquivo CSV
-# ==============================
-uploaded_file = st.file_uploader("Faça o upload do arquivo CSV", type=["csv"])
+uploaded_file = st.file_uploader("⬆️ Faça o upload do arquivo CSV", type=["csv"])
 
 if uploaded_file is not None:
+    # ==============================
+    # 2️⃣ Leitura dos dados
+    # ==============================
     df = pd.read_csv(uploaded_file)
+    st.success("✅ Arquivo carregado com sucesso!")
+    st.write("### 🧾 Colunas disponíveis no arquivo:")
+    st.write(list(df.columns))
 
     # ==============================
-    # 2️⃣ Seletores dinâmicos
+    # 3️⃣ Identificação automática das colunas principais
     # ==============================
-    estados = sorted(df["sigla_uf"].unique())
-    anos = sorted(df["ano"].unique())
+    if "ano" in df.columns and "sigla_uf" in df.columns:
+        anos = sorted(df["ano"].unique())
+        estados = sorted(df["sigla_uf"].unique())
 
-    # Apenas colunas numéricas (excluindo 'ano' e 'sigla_uf')
-    colunas_disponiveis = [col for col in df.columns if df[col].dtype != 'object' and col not in ["ano"]]
+        # Seleciona apenas colunas numéricas (para o tipo de dado)
+        colunas_numericas = df.select_dtypes(include=["float64", "int64"]).columns.tolist()
 
-    tipo_dado = st.selectbox("Selecione o tipo de dado que deseja comparar:", colunas_disponiveis)
-    estado1 = st.selectbox("Selecione o primeiro estado:", estados, index=0)
-    estado2 = st.selectbox("Selecione o segundo estado:", estados, index=1)
-    ano = st.selectbox("Selecione o ano:", anos, index=len(anos)-1)
+        st.sidebar.header("⚙️ Filtros de Comparação")
+        tipo_dado = st.sidebar.selectbox("Selecione o tipo de dado:", colunas_numericas)
+        ano = st.sidebar.selectbox("Selecione o ano:", anos, index=len(anos)-1)
+        estado1 = st.sidebar.selectbox("Primeiro estado:", estados, index=0)
+        estado2 = st.sidebar.selectbox("Segundo estado:", estados, index=1)
 
-    # ==============================
-    # 3️⃣ Filtro de dados
-    # ==============================
-    df_filtrado = df[(df["sigla_uf"].isin([estado1, estado2])) & (df["ano"] == ano)]
+        # ==============================
+        # 4️⃣ Filtragem dos dados
+        # ==============================
+        df_filtrado = df[(df["ano"] == ano) & (df["sigla_uf"].isin([estado1, estado2]))]
 
-    if df_filtrado.empty:
-        st.warning("⚠️ Não há dados disponíveis para essa combinação de estados e ano.")
+        if df_filtrado.empty:
+            st.warning("⚠️ Não há dados disponíveis para essa combinação de filtros.")
+        else:
+            # ==============================
+            # 5️⃣ Geração do gráfico
+            # ==============================
+            fig, ax = plt.subplots(figsize=(7, 4))
+            cores = ["#1f77b4", "#ff7f0e"]
+
+            barras = ax.bar(df_filtrado["sigla_uf"], df_filtrado[tipo_dado], color=cores)
+
+            # Adiciona rótulos dentro das barras
+            for i, v in enumerate(df_filtrado[tipo_dado]):
+                ax.text(i, v / 2, f"{v:.4f}", ha="center", va="center", color="white", fontweight="bold")
+
+            ax.set_title(f"{tipo_dado.replace('_', ' ').title()} ({ano})", fontsize=14, pad=15)
+            ax.set_xlabel("Estado")
+            ax.set_ylabel(tipo_dado.replace('_', ' ').title())
+            ax.set_ylim(0, df_filtrado[tipo_dado].max() * 1.2)
+
+            st.pyplot(fig)
+
+            # ==============================
+            # 6️⃣ Exibição da tabela filtrada
+            # ==============================
+            st.write("### 🔢 Dados utilizados na comparação")
+            st.dataframe(df_filtrado[["ano", "sigla_uf", tipo_dado]])
+
     else:
-        # ==============================
-        # 4️⃣ Gráfico
-        # ==============================
-        fig, ax = plt.subplots(figsize=(8, 4))
-        cores = ["#1f77b4", "#ff7f0e"]
-
-        barras = ax.bar(df_filtrado["sigla_uf"], df_filtrado[tipo_dado] * 100, color=cores)
-
-        # Adiciona rótulo dentro das barras
-        for i, v in enumerate(df_filtrado[tipo_dado]):
-            ax.text(i, (v * 100) / 2, f"{v * 100:.2f}%", ha="center", color="white", fontweight="bold")
-
-        ax.set_title(f"{tipo_dado.replace('_', ' ').title()} por Estado ({ano})", fontsize=14, pad=15)
-        ax.set_xlabel("Estado")
-        ax.set_ylabel(f"{tipo_dado.replace('_', ' ').title()} (%)")
-
-        st.pyplot(fig)
-
-        # ==============================
-        # 5️⃣ Tabela de apoio
-        # ==============================
-        st.write("### 🔢 Dados utilizados")
-        st.dataframe(df_filtrado[["sigla_uf", "ano", tipo_dado]])
-
+        st.error("❌ O arquivo precisa conter as colunas 'ano' e 'sigla_uf'. Verifique seu CSV.")
 else:
-    st.info("⬆️ Faça o upload do arquivo CSV para começar.")
+    st.info("📂 Faça o upload do arquivo CSV para começar.")
