@@ -12,15 +12,20 @@ arquivo_csv = st.file_uploader("Envie o arquivo CSV com os dados", type=["csv"])
 if arquivo_csv is not None:
     df = pd.read_csv(arquivo_csv)
 
-    # Normaliza nomes das colunas
+    # Normaliza os nomes das colunas (minúsculas e sem espaços)
     df.columns = df.columns.str.strip().str.lower()
 
-    # Verifica se as colunas principais existem
+    st.subheader("🧩 Colunas encontradas no arquivo:")
+    st.write(df.columns.tolist())
+
+    # Identifica automaticamente as colunas principais
     col_ano = next((col for col in df.columns if "ano" in col), None)
     col_estado = next((col for col in df.columns if "sigla_uf" in col or "estado" in col), None)
 
-    if not col_ano or not col_estado:
-        st.error("❌ O arquivo CSV precisa ter colunas com o nome 'ano' e 'sigla_uf'.")
+    if not col_ano:
+        st.error("❌ Não foi encontrada uma coluna relacionada a 'ano'.")
+    elif not col_estado:
+        st.error("❌ Não foi encontrada uma coluna relacionada a 'sigla_uf' ou 'estado'.")
     else:
         # --- SELEÇÃO DE ANO ---
         anos_disponiveis = sorted(df[col_ano].unique())
@@ -62,7 +67,7 @@ if arquivo_csv is not None:
                     color=cores[:len(df_filtrado)]
                 )
 
-                # Adiciona os valores em cima das barras
+                # Adiciona os valores dentro das barras
                 for barra in barras:
                     altura = barra.get_height()
                     ax.text(
