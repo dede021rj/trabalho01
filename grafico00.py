@@ -57,7 +57,7 @@ if arquivo is not None:
                 barras = ax.bar(df_filtrado["sigla_uf"], df_filtrado["despesa_total_pib"] * 100, color=cores)
 
                 for i, v in enumerate(df_filtrado["despesa_total_pib"]):
-                ax.text(i, v / 2, f"{v * 100:.2f}%", ha="center", color="black", fontweight="bold")
+                    ax.text(i, v / 2, f"{v * 100:.2f}%", ha="center", color="black", fontweight="bold")
 
 
                 ax.set_title(f"Percentual da Despesa Total em relação ao PIB ({ano})", fontsize=14, pad=15)
