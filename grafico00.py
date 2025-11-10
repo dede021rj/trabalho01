@@ -2,78 +2,61 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# ==============================
-# 1️⃣ Título do app
-# ==============================
-st.title("📊 Comparativo de Despesa Total / PIB por Estado")
-st.write("Envie o arquivo CSV com os dados orçamentários para começar a análise.")
+st.title("📊 Comparativo de Indicadores Econômicos por Estado")
 
 # ==============================
-# 2️⃣ Upload do arquivo
+# 1️⃣ Upload do arquivo CSV
 # ==============================
-arquivo = st.file_uploader("📂 Envie o arquivo CSV", type=["csv"])
+uploaded_file = st.file_uploader("Faça o upload do arquivo CSV", type=["csv"])
 
-if arquivo is not None:
-    try:
-        # Lê o arquivo enviado
-        df = pd.read_csv(arquivo)
+if uploaded_file is not None:
+    df = pd.read_csv(uploaded_file)
 
-        # Mostra algumas informações
-        st.success("✅ Arquivo carregado com sucesso!")
-        st.write("### 🔍 Visualização inicial dos dados")
-        st.dataframe(df.head())
+    # ==============================
+    # 2️⃣ Seletores dinâmicos
+    # ==============================
+    estados = sorted(df["sigla_uf"].unique())
+    anos = sorted(df["ano"].unique())
 
-        # Confirma se as colunas necessárias existem
-        colunas_necessarias = {"sigla_uf", "ano", "despesa_total_pib"}
-        if not colunas_necessarias.issubset(df.columns):
-            st.error("❌ O arquivo CSV não contém as colunas necessárias: 'sigla_uf', 'ano', 'despesa_total_pib'.")
-        else:
-            # ==============================
-            # 3️⃣ Seleção de filtros
-            # ==============================
-            estados = sorted(df["sigla_uf"].dropna().unique())
-            anos = sorted(df["ano"].dropna().unique())
+    # Apenas colunas numéricas (excluindo 'ano' e 'sigla_uf')
+    colunas_disponiveis = [col for col in df.columns if df[col].dtype != 'object' and col not in ["ano"]]
 
-            col1, col2 = st.columns(2)
-            with col1:
-                estado1 = st.selectbox("Selecione o primeiro estado:", estados)
-            with col2:
-                estado2 = st.selectbox("Selecione o segundo estado:", estados, index=min(1, len(estados)-1))
+    tipo_dado = st.selectbox("Selecione o tipo de dado que deseja comparar:", colunas_disponiveis)
+    estado1 = st.selectbox("Selecione o primeiro estado:", estados, index=0)
+    estado2 = st.selectbox("Selecione o segundo estado:", estados, index=1)
+    ano = st.selectbox("Selecione o ano:", anos, index=len(anos)-1)
 
-            ano = st.selectbox("Selecione o ano:", anos, index=len(anos)-1)
+    # ==============================
+    # 3️⃣ Filtro de dados
+    # ==============================
+    df_filtrado = df[(df["sigla_uf"].isin([estado1, estado2])) & (df["ano"] == ano)]
 
-            # Filtra os dados
-            df_filtrado = df[(df["sigla_uf"].isin([estado1, estado2])) & (df["ano"] == ano)]
+    if df_filtrado.empty:
+        st.warning("⚠️ Não há dados disponíveis para essa combinação de estados e ano.")
+    else:
+        # ==============================
+        # 4️⃣ Gráfico
+        # ==============================
+        fig, ax = plt.subplots(figsize=(8, 4))
+        cores = ["#1f77b4", "#ff7f0e"]
 
-            if df_filtrado.empty:
-                st.warning("⚠️ Não há dados disponíveis para essa combinação de estados e ano.")
-            else:
-                # ==============================
-                # 4️⃣ Criação do gráfico
-                # ==============================
-                fig, ax = plt.subplots(figsize=(8, 4))
-                cores = ["#1f77b4", "#ff7f0e"]
+        barras = ax.bar(df_filtrado["sigla_uf"], df_filtrado[tipo_dado] * 100, color=cores)
 
-                barras = ax.bar(df_filtrado["sigla_uf"], df_filtrado["despesa_total_pib"] * 100, color=cores)
+        # Adiciona rótulo dentro das barras
+        for i, v in enumerate(df_filtrado[tipo_dado]):
+            ax.text(i, (v * 100) / 2, f"{v * 100:.2f}%", ha="center", color="white", fontweight="bold")
 
-                for i, v in enumerate(df_filtrado["despesa_total_pib"]):
-                    ax.text(i, v / 2, f"{v * 100:.2f}%", ha="center", color="black", fontweight="bold")
+        ax.set_title(f"{tipo_dado.replace('_', ' ').title()} por Estado ({ano})", fontsize=14, pad=15)
+        ax.set_xlabel("Estado")
+        ax.set_ylabel(f"{tipo_dado.replace('_', ' ').title()} (%)")
 
+        st.pyplot(fig)
 
-                ax.set_title(f"Percentual da Despesa Total em relação ao PIB ({ano})", fontsize=14, pad=15)
-                ax.set_xlabel("Estado")
-                ax.set_ylabel("Despesa Total / PIB (%)")
-
-                st.pyplot(fig)
-
-                # ==============================
-                # 5️⃣ Dados utilizados
-                # ==============================
-                st.write("### 📄 Dados utilizados")
-                st.dataframe(df_filtrado[["sigla_uf", "ano", "despesa_total_pib"]])
-
-    except Exception as e:
-        st.error(f"❌ Erro ao processar o arquivo: {e}")
+        # ==============================
+        # 5️⃣ Tabela de apoio
+        # ==============================
+        st.write("### 🔢 Dados utilizados")
+        st.dataframe(df_filtrado[["sigla_uf", "ano", tipo_dado]])
 
 else:
-    st.info("⬆️ Por favor, envie um arquivo CSV para começar.")
+    st.info("⬆️ Faça o upload do arquivo CSV para começar.")
