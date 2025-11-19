@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 
 # ============================
 # 1️⃣ Configuração inicial
@@ -30,7 +31,6 @@ if arquivo_csv is not None:
         anos_disponiveis = sorted(df["ano"].dropna().unique())
         ano_escolhido = st.selectbox("Selecione o ano para análise:", anos_disponiveis)
 
-        # Filtra pelo ano
         df_ano = df[df["ano"] == ano_escolhido]
 
         estados_disponiveis = sorted(df_ano["sigla_uf"].dropna().unique())
@@ -46,7 +46,7 @@ if arquivo_csv is not None:
         opcoes_dados = {
             "Despesa Total / PIB (%)": "despesa_total_pib",
             "Despesa Média por Magistrado": "despesa_media_magistrado",
-            "Despesa Total da Justiça Estadual": "despesa_total_justica_estadual"
+            "Despesa Total da Justiça Estadual (Bilhões)": "despesa_total_justica_estadual"
         }
 
         tipo_dado = st.selectbox("Selecione o tipo de dado para comparar:", list(opcoes_dados.keys()))
@@ -60,36 +60,44 @@ if arquivo_csv is not None:
             if df_filtrado.empty:
                 st.warning("⚠️ Nenhum dado encontrado para os estados selecionados.")
             else:
+
                 # ============================
-                # 5️⃣ Gráfico
+                # 5️⃣ Tratamento especial para valores em bilhões
                 # ============================
-                fig, ax = plt.subplots(figsize=(8, 4))
+                if coluna_escolhida == "despesa_total_justica_estadual":
+                    df_filtrado = df_filtrado.copy()
+                    df_filtrado["valor_grafico"] = df_filtrado[coluna_escolhida] / 1e9
+                    label_y = "Despesa (em bilhões de R$)"
+                else:
+                    df_filtrado["valor_grafico"] = df_filtrado[coluna_escolhida]
+                    label_y = tipo_dado
+
+                # ============================
+                # 6️⃣ Gráfico
+                # ============================
+                fig, ax = plt.subplots(figsize=(9, 5))
                 cores = ["#1f77b4", "#ff7f0e", "#2ca02c", "#9467bd", "#8c564b"]
 
-                barras = ax.bar(
+                ax.bar(
                     df_filtrado["sigla_uf"],
-                    df_filtrado[coluna_escolhida],
+                    df_filtrado["valor_grafico"],
                     color=cores[:len(df_filtrado)]
                 )
 
-                # Rótulos sobre as barras
-                for barra in barras:
-                    altura = barra.get_height()
-                    ax.text(
-                        barra.get_x() + barra.get_width() / 2,
-                        altura * 0.02,
-                        f"{altura:,.2f}",
-                        ha="center", va="bottom", fontweight="bold"
-                    )
+                ax.set_title(f"{tipo_dado} ({ano_escolhido})", fontsize=16, fontweight="bold")
+                ax.set_xlabel("Estado", fontsize=12)
+                ax.set_ylabel(label_y, fontsize=12)
 
-                ax.set_title(f"{tipo_dado} ({ano_escolhido})", fontsize=14, fontweight="bold")
-                ax.set_xlabel("Estado")
-                ax.set_ylabel(tipo_dado)
+                # 🔥 Formatação do eixo Y sem pontos e sem notação científica
+                ax.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: f"{int(x)}"))
+
+                # ❌ NÃO colocar valores dentro das barras
+                # (Removido conforme seu pedido)
 
                 st.pyplot(fig)
 
                 # ============================
-                # 6️⃣ Dados usados na base
+                # 7️⃣ Dados usados
                 # ============================
                 st.write("### 🔢 Dados utilizados")
                 st.dataframe(df_filtrado[["ano", "sigla_uf", coluna_escolhida]])
