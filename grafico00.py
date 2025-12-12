@@ -11,7 +11,7 @@ st.title("📊 Comparativo de Despesas da Justiça Estadual")
 # ============================
 # 2️⃣ Upload do arquivo CSV
 # ============================
-arquivo_csv = st.file_uploader("Envie o arquivo CSV com os dados", type=["csv"])
+arquivo_csv = "https://www.irdx.com.br/media/uploads/2025/arquivo_de_despesas_do_cnj.csv"
 
 if arquivo_csv is not None:
     df = pd.read_csv(arquivo_csv)
