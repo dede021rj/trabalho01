@@ -15,7 +15,7 @@ arquivo_csv = "https://www.irdx.com.br/media/uploads/2025/arquivo_de_despesas_do
 
 if arquivo_csv is not None:
     df = pd.read_csv(arquivo_csv)
-    df = df{df{"ramo_justica"}=="Estadual"}
+    df = df[df["ramo_justica"]=="Estadual"]
     df.columns = df.columns.str.strip().str.lower()  # normaliza nomes
 
     if df.empty:
